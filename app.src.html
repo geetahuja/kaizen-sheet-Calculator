@@ -1,0 +1,853 @@
+<title>Kaizen Sheet Maker</title>
+<meta name="description" content="Write up Kaizens, calculate savings with the working shown, keep a Kaizen register, and download sheets and the register as Excel.">
+<style>
+/* Layout: three tabs (Kaizen sheet form mirroring the paper sheet, quick calculator, register of saved Kaizens); sticky bottom bar carries the total and the actions for the open tab */
+:root{
+  --bg:#f2f4f6; --panel:#ffffff; --ink:#18212b; --muted:#5b6773; --line:#d6dce2; --field:#f7f9fa;
+  --accent:#1d5fa6; --accent-soft:#e3edf8; --amber:#b9690f; --amber-soft:#fbf0e1;
+  --good:#2f7d4f; --warn:#a86400; --bad:#b53a2e; --on-accent:#ffffff;
+  --f-display:"Barlow Semi Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161c; --panel:#1a2129; --ink:#e6ebf0; --muted:#9aa6b2; --line:#2d3741; --field:#151b22;
+  --accent:#6aa5e6; --accent-soft:#1d2d40; --amber:#e8a14d; --amber-soft:#33281a;
+  --good:#5cbf86; --warn:#e2a94a; --bad:#e8786b; --on-accent:#0d1620; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161c; --panel:#1a2129; --ink:#e6ebf0; --muted:#9aa6b2; --line:#2d3741; --field:#151b22;
+  --accent:#6aa5e6; --accent-soft:#1d2d40; --amber:#e8a14d; --amber-soft:#33281a;
+  --good:#5cbf86; --warn:#e2a94a; --bad:#e8786b; --on-accent:#0d1620; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;padding-inline:16px;padding-block:20px 120px}
+.wrap{max-width:980px;margin:0 auto;display:grid;gap:18px}
+header.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:12px}
+.eyebrow{font-family:var(--f-display);text-transform:uppercase;letter-spacing:.08em;font-size:12.5px;color:var(--muted);font-weight:600}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(26px,4vw,34px);line-height:1.1;margin:2px 0 0}
+.top p{margin:4px 0 0;color:var(--muted);max-width:62ch}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap}
+section.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px;display:grid;gap:14px;min-width:0}
+.card h2{font-family:var(--f-display);font-size:20px;margin:0;font-weight:600;display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.card h2 small{font:500 12.5px var(--f-body);color:var(--muted)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:720px){.grid2,.grid3{grid-template-columns:1fr}}
+label.f{display:grid;gap:5px;min-width:0}
+label.f > span{font-weight:500;font-size:14px}
+label.f > span em{font-style:normal;color:var(--muted);font-weight:400;font-size:12.5px}
+input[type=text],input[type=date],input[type=number],textarea,select{width:100%;border:1px solid var(--line);background:var(--field);color:var(--ink);border-radius:6px;padding:8px 10px;font:15px var(--f-body)}
+textarea{min-height:76px;resize:vertical}
+input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.photo{display:grid;gap:8px}
+.drop{border:1px dashed var(--line);border-radius:6px;background:var(--field);min-height:120px;display:grid;place-items:center;text-align:center;color:var(--muted);font-size:13.5px;padding:10px;position:relative;overflow:hidden}
+.drop img{max-width:100%;max-height:200px;display:block;border-radius:4px}
+.drop input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.mini{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:600 14px var(--f-body);border-radius:6px;padding:9px 14px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent)}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn.danger{border-color:var(--bad);color:var(--bad);background:transparent}
+.checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.check{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:6px;padding:7px 10px;background:var(--field);cursor:pointer}
+.check input{width:17px;height:17px;accent-color:var(--accent)}
+.check.on{border-color:var(--accent);background:var(--accent-soft)}
+.sub{font-family:var(--f-display);text-transform:uppercase;letter-spacing:.07em;font-size:12.5px;color:var(--muted);font-weight:600;margin:0}
+.addrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.addrow .sub{margin-right:4px}
+.line{border:1px solid var(--line);border-radius:8px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);overflow:hidden}
+@media (max-width:760px){.line{grid-template-columns:1fr}}
+.line .in{padding:14px;display:grid;gap:10px;min-width:0}
+.line .out{padding:14px;background:var(--field);border-left:1px solid var(--line);display:grid;gap:10px;align-content:start;min-width:0}
+@media (max-width:760px){.line .out{border-left:0;border-top:1px solid var(--line)}}
+.line h3{font-family:var(--f-display);font-size:17px;margin:0;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.note{font-size:13px;color:var(--muted);margin:-4px 0 0}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 160px;gap:10px;align-items:center}
+@media (max-width:440px){.row{grid-template-columns:1fr}}
+.row > span{font-size:14px;font-weight:500}
+.row > span small,.row > label small{display:block;color:var(--muted);font-size:12px;font-weight:400}
+.row > label{font-size:14px;font-weight:500}
+.unitbox{display:flex;border:1px solid var(--line);border-radius:6px;background:var(--panel);overflow:hidden}
+.unitbox input,.unitbox select{border:0;border-radius:0;background:transparent;min-width:0}
+.unitbox .u{padding:8px 9px;color:var(--muted);font-size:12.5px;border-left:1px solid var(--line);white-space:nowrap;display:flex;align-items:center}
+.unitbox select.u{width:auto;font-size:12.5px;color:var(--muted);padding:6px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;grid-column:2}
+@media (max-width:440px){.chips{grid-column:1}}
+.chip{font:500 12px var(--f-body);border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:99px;padding:2px 9px;cursor:pointer}
+.chip.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.big .lbl{font-family:var(--f-display);text-transform:uppercase;letter-spacing:.07em;font-size:12px;color:var(--muted);font-weight:600;display:block}
+.big .val{font-family:var(--f-display);font-weight:700;font-size:30px;line-height:1.05;color:var(--amber);font-variant-numeric:tabular-nums}
+.pill{display:inline-block;font:600 11.5px var(--f-body);letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
+.pill.hard{color:var(--good)} .pill.soft{color:var(--warn)} .pill.avoid{color:var(--accent)}
+.work{font:12.5px/1.65 var(--f-mono);background:var(--amber-soft);border-radius:6px;padding:9px 11px;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+.warnbox{border-left:3px solid var(--warn);padding:6px 10px;font-size:13px;background:var(--amber-soft);border-radius:0 6px 6px 0}
+.empty{color:var(--muted);margin:0;font-size:14px}
+.totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.totals div{border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+.totals b{display:block;font:700 22px var(--f-display);font-variant-numeric:tabular-nums}
+.totals span{font-size:12.5px;color:var(--muted)}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px))}
+.bar .in{max-width:980px;margin:0 auto;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.bar .sum{font-family:var(--f-display);font-size:15px}
+.bar .sum b{font-size:22px;color:var(--amber);font-variant-numeric:tabular-nums}
+.bar .msg{font-size:13px;color:var(--muted)}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px;background:var(--amber-soft);border-radius:6px;padding:8px 10px}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 86px);transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:6px;font-size:14px;z-index:5;max-width:90vw}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.suggest{border:1px solid var(--accent);border-radius:8px;background:var(--accent-soft);padding:12px 14px;display:grid;gap:10px}
+.suggest-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.sg-list{display:grid;gap:8px}
+.sg{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+.sg .why{font-size:12.5px;color:var(--muted)}
+.conf{font:600 11.5px var(--f-body);padding:1px 7px;border-radius:99px;border:1px solid currentColor;margin-left:6px}
+.conf.hi{color:var(--good)} .conf.md{color:var(--warn)}
+.ticks{font-size:13.5px}
+.learn{font-size:12.5px;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.linkbtn{background:none;border:0;padding:0;color:var(--accent);font:600 12.5px var(--f-body);cursor:pointer;text-decoration:underline}
+.filebtn{position:relative;overflow:hidden}
+.filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+
+.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:4;background:var(--bg);display:flex;gap:4px;border-bottom:1px solid var(--line);padding-top:6px;margin-inline:-4px;padding-inline:4px;overflow-x:auto}
+.tab{font:600 15px var(--f-display);letter-spacing:.02em;border:0;border-bottom:3px solid transparent;background:transparent;color:var(--muted);padding:9px 14px 8px;cursor:pointer;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab .count{font:600 12px var(--f-body);background:var(--accent-soft);color:var(--accent);border-radius:99px;padding:1px 7px;margin-left:6px}
+.view{display:grid;gap:18px}
+.status{font-size:13px;color:var(--muted)}
+.status.saved{color:var(--good)}
+.bar .actions{display:flex;gap:8px;flex-wrap:wrap}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.tiles div{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.tiles b{display:block;font:700 23px var(--f-display);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tiles .hero b{color:var(--amber)}
+.tiles span{font-size:12.5px;color:var(--muted)}
+.reg-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+table.reg{width:100%;border-collapse:collapse;font-size:14px;min-width:720px}
+.reg th,.reg td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.reg th{font:600 12.5px var(--f-display);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--field)}
+.reg td.num,.reg th.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.reg tr.current td{background:var(--accent-soft)}
+.reg .t{font-weight:600}
+.reg .s{font-size:12.5px;color:var(--muted)}
+.reg .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.typechips{display:flex;gap:4px;flex-wrap:wrap}
+.typechips span{font:500 11.5px var(--f-body);border:1px solid var(--line);border-radius:99px;padding:1px 7px;color:var(--muted)}
+.quick-intro{color:var(--muted);margin:0;max-width:70ch}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <span class="eyebrow">Kaizen sheets · savings · register</span>
+      <h1>Kaizen Sheet Maker</h1>
+      <p>Write up a Kaizen, calculate its savings with the working shown, keep every Kaizen in one register, and download the sheet or the register as Excel.</p>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button class="tab" role="tab" type="button" id="tab-sheet" aria-controls="view-sheet">Kaizen sheet</button>
+    <button class="tab" role="tab" type="button" id="tab-quick" aria-controls="view-quick">Quick calculator</button>
+    <button class="tab" role="tab" type="button" id="tab-register" aria-controls="view-register">My Kaizens<span class="count" id="regCount">0</span></button>
+  </nav>
+
+  <!-- ============ KAIZEN SHEET ============ -->
+  <div class="view" id="view-sheet" role="tabpanel" aria-labelledby="tab-sheet">
+    <div class="toolbar" style="justify-content:space-between;align-items:center">
+      <span class="status" id="sheetStatus"></span>
+      <span class="toolbar">
+        <button class="btn ghost small" type="button" id="btnExample">Load example</button>
+        <button class="btn ghost small" type="button" id="btnNew">New Kaizen</button>
+      </span>
+    </div>
+    <div id="confirmBox" class="confirm" hidden></div>
+
+    <section class="card">
+    <h2>Sheet details</h2>
+    <div class="grid2">
+      <label class="f"><span>Company name <em>shown if no logo</em></span><input type="text" id="company"></label>
+      <div class="photo"><span style="font-weight:500;font-size:14px">Company logo <em style="font-style:normal;color:var(--muted);font-size:12.5px">optional, kept for next Kaizen</em></span>
+        <div class="drop" id="drop-logo"><span>Click to add logo</span><input type="file" accept="image/*" id="file-logo" aria-label="Company logo"></div>
+        <div class="mini"><button class="btn small ghost" type="button" data-clear="logo" hidden>Remove logo</button></div></div>
+    </div>
+    <div class="grid3">
+      <label class="f"><span>Kaizen No.</span><input type="text" id="kaizenNo"></label>
+      <label class="f"><span>Date</span><input type="date" id="date"></label>
+      <label class="f"><span>Department</span><input type="text" id="department"></label>
+      <label class="f"><span>Line / Area</span><input type="text" id="line"></label>
+      <label class="f"><span>Machine</span><input type="text" id="machine"></label>
+      <label class="f"><span>Target & target date</span><input type="text" id="target"></label>
+    </div>
+    <label class="f"><span>Team members</span><input type="text" id="team" placeholder="Names, separated by commas"></label>
+    <label class="f"><span>Kaizen theme</span><input type="text" id="theme"></label>
+  </section>
+
+  <section class="card">
+    <h2>Problem and root cause</h2>
+    <label class="f"><span>Problem <em>5W1H: what, where, when, who, why, how much</em></span><textarea id="problem"></textarea></label>
+    <label class="f"><span>Analysis <em>7 QC tools: why-why, fishbone, Pareto, check sheet…</em></span><textarea id="analysis"></textarea></label>
+    <div style="display:grid;gap:8px">
+      <p class="sub">Root cause [4M]</p>
+      <div class="checks" id="m4"></div>
+      <label class="f"><span class="sr">Root cause details</span><textarea id="rootDetail" placeholder="Details of the root cause" style="min-height:60px"></textarea></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Counter measure</h2>
+    <label class="f"><span>Counter measure</span><textarea id="counter" style="min-height:60px"></textarea></label>
+    <div class="grid2">
+      <div class="photo">
+        <label class="f"><span>Before counter measure</span><textarea id="before"></textarea></label>
+        <div class="drop" id="drop-before"><span>Click to add a before photo</span><input type="file" accept="image/*" id="file-before" aria-label="Before photo"></div>
+        <div class="mini"><button class="btn small ghost" type="button" data-clear="before" hidden>Remove photo</button></div>
+      </div>
+      <div class="photo">
+        <label class="f"><span>After counter measure</span><textarea id="after"></textarea></label>
+        <div class="drop" id="drop-after"><span>Click to add an after photo</span><input type="file" accept="image/*" id="file-after" aria-label="After photo"></div>
+        <div class="mini"><button class="btn small ghost" type="button" data-clear="after" hidden>Remove photo</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Waste attacked and PQCDSM <small>Adding a saving below ticks its PQCDSM boxes for you</small></h2>
+    <p class="sub">Waste attacked</p>
+    <div class="checks" id="wastes"></div>
+    <p class="sub">PQCDSM impact</p>
+    <div class="checks" id="pqcdsm"></div>
+    <p class="sub">Scope for horizontal deployment</p>
+    <div class="checks" id="horizontal"></div>
+  </section>
+
+    <section class="card" id="savingsCard">
+      <h2>Savings <small>Each line is calculated the same way every time</small></h2>
+      <div class="suggest">
+        <div class="suggest-head">
+          <div><b>Suggestions from what you wrote</b><div class="note" style="margin:0">Reads the theme, problem, counter measure, before, after and benefits. Check every suggestion before you use it.</div></div>
+          <button class="btn small" type="button" id="btnSuggest">Suggest savings and ticks</button>
+        </div>
+        <div id="suggestOut" aria-live="polite"></div>
+        <div class="learn" id="learnInfo"></div>
+      </div>
+      <div class="addrow" id="sheetAdd"><p class="sub">Add a saving</p></div>
+      <div id="sheetLines" style="display:grid;gap:14px"></div>
+      <div class="totals" id="sheetTotals"></div>
+    </section>
+
+    <section class="card">
+    <h2>Benefits and credits</h2>
+    <label class="f"><span>Benefits / results after implementation <em>one per line; the savings working is added automatically</em></span><textarea id="benefits" style="min-height:100px"></textarea></label>
+    <div class="grid2">
+      <label class="f"><span>Idea</span><input type="text" id="idea" placeholder="Idea and who gave it"></label>
+      <label class="f"><span>Implemented by</span><input type="text" id="implementedBy"></label>
+    </div>
+  </section>
+  </div>
+
+  <!-- ============ QUICK CALCULATOR ============ -->
+  <div class="view" id="view-quick" role="tabpanel" aria-labelledby="tab-quick" hidden>
+    <section class="card">
+      <h2>Quick calculator <small>Same formulas as the Kaizen sheet</small></h2>
+      <p class="quick-intro">Check a saving before writing up the Kaizen. When you're happy with it, add these lines to the Kaizen sheet with one click.</p>
+      <div class="addrow" id="quickAdd"><p class="sub">Add a saving</p></div>
+      <div id="quickLines" style="display:grid;gap:14px"></div>
+      <div class="totals" id="quickTotals"></div>
+    </section>
+  </div>
+
+  <!-- ============ MY KAIZENS ============ -->
+  <div class="view" id="view-register" role="tabpanel" aria-labelledby="tab-register" hidden>
+    <div class="tiles" id="regTiles"></div>
+    <div id="regConfirm" class="confirm" hidden></div>
+    <div class="toolbar" style="justify-content:space-between;align-items:center">
+      <input type="text" id="regFilter" placeholder="Search by Kaizen No., theme, department, line, people…" style="max-width:420px" aria-label="Search Kaizens">
+      <span class="toolbar">
+        <button class="btn small" type="button" id="btnRegXlsx">Download register (Excel)</button>
+        <button class="btn small ghost" type="button" id="btnBackup">Back up all</button>
+        <span class="filebtn btn small ghost"><span>Restore backup</span><input type="file" accept=".json,application/json" id="fileRestore" aria-label="Restore backup file"></span>
+      </span>
+    </div>
+    <div class="reg-wrap"><table class="reg" id="regTable"></table></div>
+    <p class="status" id="regNote"></p>
+  </div>
+</div>
+
+<div class="bar"><div class="in">
+  <div><div class="sum"><span id="barLabel">Annual saving</span> <b id="barTotal">Rs 0</b></div><div class="msg" id="barMsg"></div></div>
+  <div class="actions" id="barActions"></div>
+</div></div>
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script>/*@@CALC@@*/</script>
+<script>/*@@XLSX@@*/</script>
+<script>/*@@SUGGEST@@*/</script>
+<script>
+(function(){
+'use strict';
+var K = window.KaizenCalc, X = window.KaizenXlsx, SG = window.KaizenSuggest;
+var M4 = ['Man','Machine','Method','Material'];
+var DRAFT = 'kaizen-sheet-draft-v1', BRAND = 'kaizen-sheet-brand-v1', QUICK = 'kaizen-quick-v1', TRAIN = 'kaizen-training-v1';
+var TEXT_IDS = ['company','kaizenNo','date','department','line','machine','target','team','theme','problem','analysis','rootDetail','counter','before','after','benefits','idea','implementedBy'];
+var $ = function(id){ return document.getElementById(id); };
+
+function blank(){ return { wastes:[0,0,0,0,0,0,0,0].map(Boolean), pqcdsm:[0,0,0,0,0,0].map(Boolean), m4:[false,false,false,false], horizontal:'', lines:[], photos:{}, date: new Date().toISOString().slice(0,10) }; }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function uid(){ return 'K' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function fmtDate(iso){ if (!iso) return ''; var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso); return m ? m[3] + '-' + m[2] + '-' + m[1] : iso; }
+var tt; function toast(m){ var t = $('toast'); t.textContent = m; t.hidden = false; clearTimeout(tt); tt = setTimeout(function(){ t.hidden = true; }, 2600); }
+function lsGet(k, d){ try { var v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch(e){ return d; } }
+function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch(e){ return false; } }
+
+var S = blank();          // the Kaizen on the sheet tab
+var Q = { lines: [] };    // quick calculator lines
+var REG = [];             // saved Kaizens: { id, savedAt, data }
+
+/* ================= storage: draft + quick in localStorage, register in IndexedDB ================= */
+function saveDraft(){
+  if (!lsSet(DRAFT, S)){ var c = JSON.parse(JSON.stringify(S)); c.photos = {}; lsSet(DRAFT, c); }
+  lsSet(BRAND, { company: S.company || '', logo: S.photos.logo || null });
+}
+var Store = (function(){
+  var dbp = null, mem = {}, memOnly = false;
+  function open(){
+    if (dbp) return dbp;
+    dbp = new Promise(function(res, rej){
+      try {
+        var rq = indexedDB.open('kaizen-sheet-maker', 1);
+        rq.onupgradeneeded = function(){ rq.result.createObjectStore('kaizens', { keyPath: 'id' }); };
+        rq.onsuccess = function(){ res(rq.result); };
+        rq.onerror = function(){ rej(rq.error); };
+      } catch(e){ rej(e); }
+    }).catch(function(){ memOnly = true; return null; });
+    return dbp;
+  }
+  function tx(mode, fn){
+    return open().then(function(db){
+      if (!db) return fn(null);
+      return new Promise(function(res, rej){
+        var t = db.transaction('kaizens', mode), st = t.objectStore('kaizens'), out = fn(st);
+        t.oncomplete = function(){ res(out && out.result !== undefined ? out.result : out); };
+        t.onerror = function(){ rej(t.error); };
+      });
+    });
+  }
+  return {
+    all: function(){ return tx('readonly', function(st){ if (!st) return Object.keys(mem).map(function(k){ return mem[k]; }); return st.getAll(); }); },
+    put: function(rec){ return tx('readwrite', function(st){ if (!st){ mem[rec.id] = rec; return; } st.put(rec); }); },
+    del: function(id){ return tx('readwrite', function(st){ if (!st){ delete mem[id]; return; } st.delete(id); }); },
+    memOnly: function(){ return memOnly; }
+  };
+})();
+function loadRegister(){
+  return Store.all().then(function(list){ REG = (list || []).sort(function(a,b){ return (b.savedAt||0) - (a.savedAt||0); }); renderRegister(); renderStatus(); })
+    .catch(function(){ REG = []; renderRegister(); });
+}
+var regT; function syncToRegisterSoon(){ if (!S.id) return; clearTimeout(regT); regT = setTimeout(saveToRegister, 900); }
+function saveToRegister(quiet){
+  if (!S.id) S.id = uid();
+  var rec = { id: S.id, savedAt: Date.now(), data: JSON.parse(JSON.stringify(S)) };
+  return Store.put(rec).then(function(){
+    var i = REG.findIndex(function(r){ return r.id === rec.id; });
+    if (i >= 0) REG.splice(i, 1); REG.unshift(rec);
+    saveDraft(); renderRegister(); renderStatus();
+    if (!quiet) toast('Saved to My Kaizens');
+  }, function(){ toast('Could not save in this browser. Download the Excel sheet to keep it.'); });
+}
+var draftT; function changed(){ clearTimeout(draftT); draftT = setTimeout(saveDraft, 400); syncToRegisterSoon(); renderStatus(); }
+function hasContent(k){
+  if (!k) return false;
+  if ((k.lines || []).length) return true;
+  return ['kaizenNo','theme','problem','counter','before','after','benefits','analysis'].some(function(f){ return (k[f] || '').trim(); });
+}
+
+/* ================= tabs + bottom bar ================= */
+var VIEW = 'sheet';
+function show(v){
+  VIEW = v;
+  ['sheet','quick','register'].forEach(function(x){ $('view-' + x).hidden = x !== v; $('tab-' + x).setAttribute('aria-selected', x === v); });
+  try { if (location.hash !== '#' + v) history.replaceState(null, '', '#' + v); } catch(e){}
+  if (v === 'register') renderRegister();
+  renderBar();
+}
+['sheet','quick','register'].forEach(function(v){ $('tab-' + v).onclick = function(){ show(v); }; });
+
+function renderBar(){
+  var acts = $('barActions'), bar = document.querySelector('.bar');
+  bar.hidden = VIEW === 'register';
+  if (VIEW === 'sheet'){
+    var t = K.totals(sheetView.results().filter(Boolean));
+    $('barLabel').textContent = 'Annual saving'; $('barTotal').textContent = K.rs(t.total);
+    var inc = sheetView.results().filter(function(r){ return !r; }).length;
+    $('barMsg').textContent = inc ? inc + ' saving line' + (inc > 1 ? 's are' : ' is') + ' incomplete and will be left out.' :
+      ((t.hard && t.soft ? 'Hard ' + K.rs(t.hard) + ' + soft ' + K.rs(t.soft) + '.' : (S.lines.length ? '' : 'No savings yet. Safety-only Kaizens are fine.')) + (t.oneTime ? ' Plus ' + K.rs(t.oneTime) + ' one-time.' : ''));
+    acts.innerHTML = '<button class="btn ghost" type="button" id="btnSave">' + (S.id ? 'Saved' : 'Save to My Kaizens') + '</button><button class="btn" type="button" id="btnDownload">Download Excel sheet</button>';
+    $('btnSave').disabled = !!S.id;
+    $('btnSave').onclick = function(){ saveToRegister(); learnFromThis(); };
+    $('btnDownload').onclick = downloadSheet;
+  } else if (VIEW === 'quick'){
+    var q = K.totals(quickView.results().filter(Boolean));
+    $('barLabel').textContent = 'Quick total'; $('barTotal').textContent = K.rs(q.total);
+    $('barMsg').textContent = Q.lines.length ? (q.oneTime ? 'Plus ' + K.rs(q.oneTime) + ' one-time.' : 'Not saved to any Kaizen yet.') : 'Add a saving to start.';
+    acts.innerHTML = '<button class="btn ghost" type="button" id="btnQClear">Clear</button><button class="btn ghost" type="button" id="btnQCopy">Copy working</button><button class="btn" type="button" id="btnQToSheet">Add to Kaizen sheet</button>';
+    $('btnQCopy').onclick = function(){ copy(K.savingsText(quickView.results())); };
+    $('btnQClear').onclick = function(){ if (!Q.lines.length) return; Q.lines = []; lsSet(QUICK, Q); quickView.render(); toast('Quick calculator cleared'); };
+    $('btnQToSheet').onclick = function(){
+      if (!Q.lines.length){ toast('Add a saving first.'); return; }
+      Q.lines.forEach(function(l){ var c = JSON.parse(JSON.stringify(l)); c.id = 'L' + Date.now() + Math.random().toString(36).slice(2,5); S.lines.push(c); tickFor(c.type); });
+      renderChecks(); sheetView.render(); changed();
+      toast(Q.lines.length + ' saving line' + (Q.lines.length > 1 ? 's' : '') + ' added to the Kaizen sheet');
+      show('sheet'); setTimeout(function(){ $('savingsCard').scrollIntoView({ behavior: 'smooth' }); }, 50);
+    };
+  }
+}
+function renderStatus(){
+  var el = $('sheetStatus');
+  if (S.id){ el.className = 'status saved'; el.textContent = 'Saved in My Kaizens. Changes are kept automatically.'; }
+  else { el.className = 'status'; el.textContent = hasContent(S) ? 'Not in My Kaizens yet. Save it, or download it, to keep it.' : 'New Kaizen'; }
+  $('regCount').textContent = REG.length;
+  if (VIEW === 'sheet') renderBar();
+}
+
+/* ================= sheet form ================= */
+function bindText(){
+  TEXT_IDS.forEach(function(id){ var el = $(id); el.value = S[id] || ''; el.oninput = function(){ S[id] = el.value; changed(); }; });
+}
+function checks(elId, labels, arr){
+  var host = $(elId); host.innerHTML = '';
+  labels.forEach(function(l, i){
+    var lab = document.createElement('label'); lab.className = 'check' + (arr[i] ? ' on' : '');
+    var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!arr[i]; cb.id = elId + '-' + i;
+    cb.onchange = function(){ arr[i] = cb.checked; lab.classList.toggle('on', cb.checked); changed(); };
+    lab.appendChild(cb); lab.appendChild(document.createTextNode(l)); host.appendChild(lab);
+  });
+}
+function radios(){
+  var host = $('horizontal'); host.innerHTML = '';
+  [['yes','Yes'],['no','No']].forEach(function(o){
+    var lab = document.createElement('label'); lab.className = 'check' + (S.horizontal === o[0] ? ' on' : '');
+    var r = document.createElement('input'); r.type = 'radio'; r.name = 'hz'; r.id = 'hz-' + o[0]; r.checked = S.horizontal === o[0];
+    r.onchange = function(){ S.horizontal = o[0]; radios(); changed(); };
+    lab.appendChild(r); lab.appendChild(document.createTextNode(o[1])); host.appendChild(lab);
+  });
+}
+function renderChecks(){ checks('wastes', X.WASTES, S.wastes); checks('pqcdsm', X.PQCDSM, S.pqcdsm); checks('m4', M4, S.m4); radios(); }
+function tickFor(type){ K.TYPES[type].pqcdsm.forEach(function(p){ var i = X.PQCDSM.indexOf(p); if (i >= 0) S.pqcdsm[i] = true; }); }
+
+/* photos */
+function readImage(file, kind){
+  return new Promise(function(resolve, reject){
+    var fr = new FileReader();
+    fr.onerror = function(){ reject(new Error('Could not read that file.')); };
+    fr.onload = function(){
+      var img = new Image();
+      img.onerror = function(){ reject(new Error('That file is not an image this browser can open.')); };
+      img.onload = function(){
+        var max = kind === 'logo' ? 400 : 1100, sc = Math.min(1, max / Math.max(img.width, img.height));
+        var w = Math.max(1, Math.round(img.width * sc)), h = Math.max(1, Math.round(img.height * sc));
+        var cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+        var cx = cv.getContext('2d'), png = kind === 'logo' && /png|gif|svg|webp/i.test(file.type);
+        if (!png){ cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, w, h); }
+        cx.drawImage(img, 0, 0, w, h);
+        resolve({ dataUrl: cv.toDataURL(png ? 'image/png' : 'image/jpeg', 0.85), ext: png ? 'png' : 'jpeg', width: w, height: h });
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+function renderPhoto(kind){
+  var drop = $('drop-' + kind), p = S.photos[kind], input = drop.querySelector('input');
+  Array.prototype.slice.call(drop.childNodes).forEach(function(n){ if (n !== input) drop.removeChild(n); });
+  var el;
+  if (p){ el = document.createElement('img'); el.src = p.dataUrl; el.alt = kind + ' photo'; }
+  else { el = document.createElement('span'); el.textContent = kind === 'logo' ? 'Click to add logo' : 'Click to add ' + (kind === 'after' ? 'an' : 'a') + ' ' + kind + ' photo'; }
+  drop.insertBefore(el, input);
+  document.querySelector('[data-clear="' + kind + '"]').hidden = !p;
+}
+function bindPhotos(){
+  ['logo','before','after'].forEach(function(kind){
+    var input = $('file-' + kind);
+    input.onchange = function(){
+      var f = input.files && input.files[0]; if (!f) return;
+      readImage(f, kind).then(function(p){ S.photos[kind] = p; renderPhoto(kind); changed(); }).catch(function(e){ toast(e.message); });
+      input.value = '';
+    };
+    document.querySelector('[data-clear="' + kind + '"]').onclick = function(){ delete S.photos[kind]; renderPhoto(kind); changed(); };
+  });
+}
+function bytesOf(p){
+  if (!p) return null;
+  var bin = atob(p.dataUrl.split(',')[1]), u = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return { bytes: u, ext: p.ext, width: p.width, height: p.height };
+}
+
+/* ================= saving lines (shared by sheet and quick calculator) ================= */
+function LinesView(cfg){
+  var self = {};
+  function lines(){ return cfg.state().lines; }
+  self.results = function(){ return lines().map(K.calcLine); };
+  self.add = function(type, values){
+    var ln = K.newLine(type); ln.id = 'L' + Date.now() + Math.random().toString(36).slice(2,5);
+    if (values) Object.keys(values).forEach(function(k){ ln.values[k] = values[k]; });
+    lines().push(ln); if (cfg.onAdd) cfg.onAdd(type);
+    self.render(); cfg.onChange();
+    var el = $(cfg.prefix + ln.id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    return ln;
+  };
+  self.buttons = function(){
+    Object.keys(K.TYPES).forEach(function(t){
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'btn small ghost'; b.textContent = '+ ' + K.TYPES[t].label;
+      b.onclick = function(){ self.add(t); };
+      cfg.addHost.appendChild(b);
+    });
+  };
+  function fieldHtml(ln, f){
+    var v = ln.values, id = cfg.prefix + 'in-' + ln.id + '-' + f.id;
+    var lab = '<span>' + f.label + (f.sub ? '<small>' + f.sub + '</small>' : '') + '</span>';
+    if (f.unit === 'text') return '<label class="f" for="' + id + '"><span>' + f.label + '</span><input type="text" id="' + id + '" data-f="' + f.id + '" value="' + esc(v[f.id]) + '"></label>';
+    if (f.unit === 'freq') return '<div class="row"><label for="' + id + '">' + lab + '</label><select id="' + id + '" data-f="' + f.id + '"><option value="month"' + (v.freq !== 'once' ? ' selected' : '') + '>Every month</option><option value="once"' + (v.freq === 'once' ? ' selected' : '') + '>One time only</option></select></div>';
+    if (f.unit === 'class') return '<div class="row"><label for="' + id + '">' + lab + '</label><select id="' + id + '" data-f="' + f.id + '"><option value="hard"' + (v.kind !== 'soft' ? ' selected' : '') + '>Hard saving</option><option value="soft"' + (v.kind === 'soft' ? ' selected' : '') + '>Soft saving</option></select></div>';
+    var unit;
+    if (f.unit === 'time') unit = '<select class="u" data-unit="tUnit" aria-label="Time unit"><option value="hr"' + (v.tUnit === 'hr' ? ' selected' : '') + '>hours</option><option value="min"' + (v.tUnit === 'min' ? ' selected' : '') + '>minutes</option></select>';
+    else if (f.unit === 'qty') unit = '<select class="u" data-unit="qtyUnit" aria-label="Unit">' + ['kg','litre','metre','nos','sheet','set'].map(function(u){ return '<option' + (v.qtyUnit === u ? ' selected' : '') + '>' + u + '</option>'; }).join('') + '</select>';
+    else unit = '<span class="u">' + f.unit + '</span>';
+    var h = '<div class="row"><label for="' + id + '">' + lab + '</label><div class="unitbox"><input type="number" inputmode="decimal" step="any" min="0" id="' + id + '" data-f="' + f.id + '" value="' + (v[f.id] !== '' && isFinite(v[f.id]) ? v[f.id] : '') + '">' + unit + '</div></div>';
+    if (f.chips) h += '<div class="row" style="margin-top:-6px"><span></span><div class="chips">' + f.chips.map(function(c){ return '<button type="button" class="chip' + (+v[f.id] === c ? ' on' : '') + '" data-chip="' + f.id + '" data-v="' + c + '">' + c + (f.id === 'shift' ? '-hr' : ' days') + '</button>'; }).join('') + '</div></div>';
+    return h;
+  }
+  function renderOut(ln, box){
+    var out = box.querySelector('.out'), miss = K.missing(ln);
+    if (miss.length){ out.innerHTML = '<p class="empty">Fill in: ' + miss.map(function(m){ return m.toLowerCase(); }).join(', ') + '.</p>'; return; }
+    var r = K.calcLine(ln);
+    var head = r.once !== undefined
+      ? '<div class="big"><span class="lbl">One-time benefit</span><span class="val">' + K.rs(r.once) + '</span></div><div style="font-size:13.5px;color:var(--muted)">Counted once, not in the yearly saving</div>'
+      : r.cls === 'avoid'
+      ? '<div class="big"><span class="lbl">Risk reduced</span><span class="val">' + K.fmt(r.risk.pct, 0) + '%</span></div><div>' + r.risk.before + ' (' + r.risk.levelBefore + ') → ' + r.risk.after + ' (' + r.risk.levelAfter + ')</div>'
+      : '<div class="big"><span class="lbl">Annual saving</span><span class="val">' + K.rs(r.year) + '</span></div><div style="font-size:13.5px;color:var(--muted)">' +
+        (r.day !== undefined ? K.rs(r.day, 2) + ' per day · ' : '') + K.rs(r.month, 2) + ' per month' + (isFinite(r.payback) ? ' · payback ' + K.fmt(r.payback, 1) + ' months' : '') + '</div>';
+    out.innerHTML = '<span class="pill ' + r.cls + '">' + K.CLASS_LABEL[r.cls] + '</span>' + head + (r.warn ? '<div class="warnbox">' + esc(r.warn) + '</div>' : '') +
+      '<pre class="work">' + esc(r.working.join('\n')) + '</pre><div><button class="btn small ghost" type="button" data-copy>Copy working</button></div>';
+    out.querySelector('[data-copy]').onclick = function(){ copy(K.TYPES[ln.type].title + '\n' + r.working.join('\n')); };
+  }
+  self.render = function(){
+    var host = cfg.listEl; host.innerHTML = '';
+    if (!lines().length) host.innerHTML = '<p class="empty">' + cfg.emptyText + '</p>';
+    lines().forEach(function(ln, idx){
+      var T = K.TYPES[ln.type];
+      var box = document.createElement('div'); box.className = 'line'; box.id = cfg.prefix + ln.id;
+      box.innerHTML = '<div class="in"><h3>' + (idx + 1) + '. ' + T.title + '<button type="button" class="btn small danger" data-rm>Remove</button></h3><p class="note">' + T.note + '</p>' +
+        T.fields.map(function(f){ return fieldHtml(ln, f); }).join('') + '</div><div class="out" aria-live="polite"></div>';
+      host.appendChild(box);
+      box.querySelector('[data-rm]').onclick = function(){ cfg.state().lines = lines().filter(function(l){ return l.id !== ln.id; }); self.render(); cfg.onChange(); };
+      box.querySelectorAll('[data-f]').forEach(function(inp){
+        var upd = function(){
+          var f = inp.dataset.f;
+          ln.values[f] = inp.tagName === 'SELECT' ? inp.value : (inp.type === 'number' ? (inp.value === '' ? '' : +inp.value) : inp.value);
+          box.querySelectorAll('[data-chip="' + f + '"]').forEach(function(c){ c.classList.toggle('on', +c.dataset.v === +ln.values[f]); });
+          renderOut(ln, box); self.totals(); cfg.onChange();
+        };
+        inp.addEventListener(inp.tagName === 'SELECT' ? 'change' : 'input', upd);
+      });
+      box.querySelectorAll('[data-unit]').forEach(function(sel){
+        sel.onchange = function(){
+          var key = sel.dataset.unit, to = sel.value;
+          if (key === 'tUnit' && ln.values.tUnit !== to && ln.values.t !== '' && isFinite(+ln.values.t)){
+            ln.values.t = to === 'min' ? +(ln.values.t * 60).toFixed(2) : +(ln.values.t / 60).toFixed(4);
+            box.querySelector('[data-f="t"]').value = ln.values.t;
+          }
+          ln.values[key] = to; renderOut(ln, box); self.totals(); cfg.onChange();
+        };
+      });
+      box.querySelectorAll('[data-chip]').forEach(function(c){
+        c.onclick = function(){
+          var f = c.dataset.chip; ln.values[f] = +c.dataset.v; box.querySelector('[data-f="' + f + '"]').value = ln.values[f];
+          box.querySelectorAll('[data-chip="' + f + '"]').forEach(function(x){ x.classList.toggle('on', x === c); });
+          renderOut(ln, box); self.totals(); cfg.onChange();
+        };
+      });
+      renderOut(ln, box);
+    });
+    self.totals();
+  };
+  self.totals = function(){
+    var t = K.totals(self.results().filter(Boolean));
+    cfg.totalsEl.innerHTML = lines().length ? (
+      '<div><span>Hard savings / year</span><b>' + K.rs(t.hard) + '</b></div>' +
+      '<div><span>Soft savings / year</span><b>' + K.rs(t.soft) + '</b></div>' +
+      '<div><span>Total investment</span><b>' + K.rs(t.inv) + '</b></div>' +
+      '<div><span>Payback</span><b>' + (isFinite(t.payback) ? K.fmt(t.payback, 1) + ' mo' : '–') + '</b></div>' +
+      (t.oneTime ? '<div><span>One-time benefit</span><b>' + K.rs(t.oneTime) + '</b></div>' : '') +
+      (t.safety ? '<div><span>Safety lines</span><b>' + t.safety + '</b></div>' : '')) : '';
+    if (cfg.view === VIEW) renderBar();
+  };
+  return self;
+}
+var sheetView = LinesView({ state: function(){ return S; }, listEl: $('sheetLines'), totalsEl: $('sheetTotals'), addHost: $('sheetAdd'), prefix: 'sl-', view: 'sheet',
+  emptyText: 'No savings yet. Use the suggestions above, or the buttons: Manpower for time saved, Rejection for fewer rejected jobs, Other for one-time gains, Safety for safety Kaizens.',
+  onAdd: function(t){ tickFor(t); checks('pqcdsm', X.PQCDSM, S.pqcdsm); }, onChange: changed });
+var quickView = LinesView({ state: function(){ return Q; }, listEl: $('quickLines'), totalsEl: $('quickTotals'), addHost: $('quickAdd'), prefix: 'ql-', view: 'quick',
+  emptyText: 'Add a saving above to try a calculation.', onChange: function(){ lsSet(QUICK, Q); if (VIEW === 'quick') renderBar(); } });
+
+/* ================= Excel: sheet + register ================= */
+function kaizenData(k){
+  var rc = M4.filter(function(m, i){ return (k.m4 || [])[i]; }).join(', '), rd = (k.rootDetail || '').trim();
+  var res = (k.lines || []).map(K.calcLine), ph = k.photos || {};
+  return {
+    company: k.company, kaizenNo: k.kaizenNo, date: fmtDate(k.date), department: k.department, line: k.line, machine: k.machine,
+    team: k.team, theme: k.theme, target: k.target, problem: k.problem, counter: k.counter, before: k.before, after: k.after,
+    analysis: k.analysis, rootCause: rc && rd ? rc + ': ' + rd : (rc || rd), benefits: k.benefits,
+    savingsText: K.savingsText(res), idea: k.idea, implementedBy: k.implementedBy,
+    wastes: k.wastes, pqcdsm: k.pqcdsm, horizontal: k.horizontal,
+    logo: bytesOf(ph.logo), photoBefore: bytesOf(ph.before), photoAfter: bytesOf(ph.after)
+  };
+}
+function sheetName(k){ var n = (k.kaizenNo || '').trim().replace(/[^\w\-]+/g, '-').replace(/^-+|-+$/g, ''); return 'Kaizen-' + (n || 'draft') + '.xlsx'; }
+function downloadKaizen(k, after){
+  var bytes;
+  try { bytes = X.build(kaizenData(k)); } catch(e){ toast('Could not build the sheet: ' + e.message); return; }
+  saveFile(sheetName(k), new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), after);
+}
+function downloadSheet(){ downloadKaizen(S, function(){ learnFromThis(); saveToRegister(true); }); }
+
+function summary(k){
+  var res = (k.lines || []).map(K.calcLine).filter(Boolean), t = K.totals(res);
+  var safety = res.filter(function(r){ return r.cls === 'avoid'; }).map(function(r){ return r.risk.before + ' → ' + r.risk.after; }).join('; ');
+  var types = []; (k.lines || []).forEach(function(l){ var n = K.TYPES[l.type].label; if (types.indexOf(n) < 0) types.push(n); });
+  return { t: t, safety: safety, types: types };
+}
+function downloadRegister(){
+  var list = filtered();
+  if (!list.length){ toast('No Kaizens to put in the register yet.'); return; }
+  var cols = [
+    { h: 'Kaizen No.', w: 11 }, { h: 'Date', w: 11 }, { h: 'Department', w: 14 }, { h: 'Line / Area', w: 14 }, { h: 'Machine', w: 16 },
+    { h: 'Kaizen theme', w: 38 }, { h: 'Saving types', w: 22 },
+    { h: 'Hard saving / year (Rs)', w: 15, num: true }, { h: 'Soft saving / year (Rs)', w: 15, num: true }, { h: 'Total saving / year (Rs)', w: 15, num: true },
+    { h: 'One-time benefit (Rs)', w: 15, num: true }, { h: 'Investment (Rs)', w: 14, num: true }, { h: 'Payback (months)', w: 11, num: true, dec: true },
+    { h: 'Safety risk (before → after)', w: 16 }, { h: 'Waste attacked', w: 30 }, { h: 'PQCDSM', w: 22 }, { h: 'Team', w: 26 }, { h: 'Implemented by', w: 20 }
+  ];
+  var rows = list.map(function(r){
+    var k = r.data, s = summary(k);
+    return [k.kaizenNo || '', fmtDate(k.date), k.department || '', k.line || '', k.machine || '', k.theme || (k.problem || '').slice(0, 120), s.types.join(', '),
+      s.t.hard || 0, s.t.soft || 0, s.t.total || 0, s.t.oneTime || '', s.t.inv || '', isFinite(s.t.payback) ? Math.round(s.t.payback * 10) / 10 : '',
+      s.safety, X.WASTES.filter(function(w, i){ return (k.wastes || [])[i]; }).join(', '), X.PQCDSM.filter(function(p, i){ return (k.pqcdsm || [])[i]; }).join(', '),
+      k.team || '', k.implementedBy || ''];
+  });
+  var company = (list[0].data.company || '').trim();
+  var bytes = X.buildRegister({ title: (company ? company + ' – ' : '') + 'Kaizen register',
+    subtitle: list.length + ' Kaizens · downloaded ' + fmtDate(new Date().toISOString().slice(0, 10)) + ' · hard, soft and one-time amounts are kept in separate columns',
+    columns: cols, rows: rows, totalCols: [7, 8, 9, 10, 11] });
+  saveFile('Kaizen-register-' + new Date().toISOString().slice(0, 10) + '.xlsx', new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+}
+
+/* ================= My Kaizens ================= */
+function filtered(){
+  var q = ($('regFilter').value || '').toLowerCase().trim();
+  if (!q) return REG;
+  return REG.filter(function(r){ var k = r.data; return [k.kaizenNo, k.theme, k.department, k.line, k.machine, k.team, k.implementedBy, k.problem].join(' ').toLowerCase().indexOf(q) >= 0; });
+}
+function renderRegister(){
+  $('regCount').textContent = REG.length;
+  var all = REG.map(function(r){ return summary(r.data).t; });
+  var sum = function(f){ return all.reduce(function(s, t){ return s + (t[f] || 0); }, 0); };
+  $('regTiles').innerHTML =
+    '<div class="hero"><span>Total saving per year</span><b>' + K.rs(sum('total')) + '</b></div>' +
+    '<div><span>Kaizens</span><b>' + REG.length + '</b></div>' +
+    '<div><span>Hard saving per year</span><b>' + K.rs(sum('hard')) + '</b></div>' +
+    '<div><span>Soft saving per year</span><b>' + K.rs(sum('soft')) + '</b></div>' +
+    '<div><span>One-time benefits</span><b>' + K.rs(sum('oneTime')) + '</b></div>' +
+    '<div><span>Total investment</span><b>' + K.rs(sum('inv')) + '</b></div>';
+  var list = filtered(), tb = $('regTable');
+  if (!REG.length){ tb.innerHTML = '<tbody><tr><td class="empty">No saved Kaizens yet. On the Kaizen sheet tab, press "Save to My Kaizens" or download the Excel sheet, and it appears here.</td></tr></tbody>'; }
+  else if (!list.length){ tb.innerHTML = '<tbody><tr><td class="empty">No Kaizens match that search.</td></tr></tbody>'; }
+  else tb.innerHTML = '<thead><tr><th>Kaizen</th><th>Saving types</th><th class="num">Per year</th><th class="num">One-time</th><th class="num">Payback</th><th></th></tr></thead><tbody>' +
+    list.map(function(r){
+      var k = r.data, s = summary(k);
+      return '<tr' + (r.id === S.id ? ' class="current"' : '') + '><td><div class="t">' + esc(k.kaizenNo ? 'Kaizen ' + k.kaizenNo : 'No number') + (r.id === S.id ? ' · on the sheet now' : '') + '</div>' +
+        '<div>' + esc(k.theme || (k.problem || '').slice(0, 90) || 'Untitled') + '</div><div class="s">' + esc([fmtDate(k.date), k.department, k.line].filter(Boolean).join(' · ')) + '</div></td>' +
+        '<td><div class="typechips">' + (s.types.length ? s.types.map(function(t){ return '<span>' + esc(t) + '</span>'; }).join('') : '<span>none</span>') + '</div>' + (s.safety ? '<div class="s">Risk ' + esc(s.safety) + '</div>' : '') + '</td>' +
+        '<td class="num">' + K.rs(s.t.total) + '</td><td class="num">' + (s.t.oneTime ? K.rs(s.t.oneTime) : '–') + '</td><td class="num">' + (isFinite(s.t.payback) ? K.fmt(s.t.payback, 1) + ' mo' : '–') + '</td>' +
+        '<td><div class="acts"><button class="btn small" type="button" data-open="' + r.id + '">Open</button><button class="btn small ghost" type="button" data-xl="' + r.id + '">Excel</button><button class="btn small danger" type="button" data-del="' + r.id + '">Delete</button></div></td></tr>';
+    }).join('') + '</tbody>';
+  tb.querySelectorAll('[data-open]').forEach(function(b){ b.onclick = function(){ openKaizen(b.dataset.open); }; });
+  tb.querySelectorAll('[data-xl]').forEach(function(b){ b.onclick = function(){ var r = REG.find(function(x){ return x.id === b.dataset.xl; }); if (r) downloadKaizen(r.data); }; });
+  tb.querySelectorAll('[data-del]').forEach(function(b){
+    b.onclick = function(){
+      var r = REG.find(function(x){ return x.id === b.dataset.del; }); if (!r) return;
+      confirmIn('regConfirm', 'Delete ' + (r.data.kaizenNo ? 'Kaizen ' + esc(r.data.kaizenNo) : 'this Kaizen') + ' from My Kaizens? This cannot be undone. Download its Excel sheet first if you need it.',
+        [['Delete', 'danger', function(){ Store.del(r.id).then(function(){ REG = REG.filter(function(x){ return x.id !== r.id; }); if (S.id === r.id){ delete S.id; saveDraft(); } renderRegister(); renderStatus(); toast('Deleted'); }); }],
+         ['Keep it', 'ghost', null]]);
+    };
+  });
+  $('regNote').textContent = Store.memOnly() ? 'This browser is not letting the app store data, so My Kaizens lasts only until you close this page. Download the register to keep it.'
+    : 'My Kaizens is kept in this browser on this device. Use "Back up all" to move it to another computer.';
+}
+$('regFilter').oninput = renderRegister;
+$('btnRegXlsx').onclick = downloadRegister;
+$('btnBackup').onclick = function(){
+  if (!REG.length){ toast('Nothing to back up yet.'); return; }
+  saveFile('kaizen-backup-' + new Date().toISOString().slice(0, 10) + '.json', new Blob([JSON.stringify({ app: 'kaizen-sheet-maker', version: 1, kaizens: REG, learning: training }, null, 1)], { type: 'application/json' }));
+};
+$('fileRestore').onchange = function(e){
+  var f = e.target.files && e.target.files[0]; if (!f) return;
+  var fr = new FileReader();
+  fr.onload = function(){
+    try {
+      var d = JSON.parse(fr.result); if (!d || !Array.isArray(d.kaizens)) throw new Error('bad');
+      var have = {}; REG.forEach(function(r){ have[r.id] = 1; });
+      var add = d.kaizens.filter(function(r){ return r && r.id && r.data && !have[r.id]; });
+      Promise.all(add.map(function(r){ return Store.put(r); })).then(function(){
+        if (Array.isArray(d.learning)){ var keys = {}; training.forEach(function(t){ keys[t.key] = 1; }); d.learning.forEach(function(x){ if (x && typeof x.text === 'string' && x.labels && !keys[x.key]){ training.push(x); keys[x.key] = 1; } }); saveTraining(); }
+        return loadRegister();
+      }).then(function(){ toast('Restored ' + add.length + ' Kaizen' + (add.length === 1 ? '' : 's')); });
+    } catch(err){ toast('That file is not a Kaizen backup.'); }
+  };
+  fr.readAsText(f); e.target.value = '';
+};
+
+function confirmIn(boxId, html, buttons){
+  var box = $(boxId); box.innerHTML = '<span>' + html + '</span>'; box.hidden = false;
+  buttons.forEach(function(b){
+    var el = document.createElement('button'); el.type = 'button'; el.className = 'btn small ' + b[1]; el.textContent = b[0];
+    el.onclick = function(){ box.hidden = true; if (b[2]) b[2](); };
+    box.appendChild(el);
+  });
+  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+// replace the sheet with another Kaizen, asking first if the current one would be lost
+function replaceSheet(next, label){
+  function go(){ S = next; saveDraft(); renderAll(); renderRegister(); show('sheet'); window.scrollTo(0, 0); toast(label); }
+  if (S.id || !hasContent(S)){ go(); return; }
+  var box = VIEW === 'register' ? 'regConfirm' : 'confirmBox';
+  confirmIn(box, 'The Kaizen on the sheet now is not saved in My Kaizens.', [
+    ['Save it, then continue', '', function(){ saveToRegister(true).then(go); }],
+    ['Discard it', 'danger', go],
+    ['Cancel', 'ghost', null]]);
+}
+function openKaizen(id){
+  var r = REG.find(function(x){ return x.id === id; }); if (!r) return;
+  if (S.id === id){ show('sheet'); return; }
+  var k = Object.assign(blank(), JSON.parse(JSON.stringify(r.data))); k.id = r.id;
+  replaceSheet(k, 'Opened ' + (k.kaizenNo ? 'Kaizen ' + k.kaizenNo : 'Kaizen'));
+}
+function brandOnly(){ var b = blank(), br = lsGet(BRAND, null); b.company = S.company || (br && br.company) || ''; var logo = S.photos.logo || (br && br.logo); if (logo) b.photos.logo = logo; return b; }
+$('btnNew').onclick = function(){ replaceSheet(brandOnly(), 'New Kaizen started'); };
+$('btnExample').onclick = function(){
+  var k = brandOnly(); if (!k.company) k.company = 'Advent Engineers';
+  Object.assign(k, {
+    kaizenNo: 'EX-01', date: '2026-10-07', department: 'Production', line: 'Line 1', machine: 'Primary copper cutting machine',
+    target: 'Cut cycle time 20% by 30-10-2026', team: 'Kiran Patil, Abhay Salave, Bandu Kadale, Sampat Bharit',
+    theme: 'Machine cutting of primary copper to save time and improve quality',
+    problem: 'Primary copper was cut by hand. 50 jobs took 10 hours with 2 operators, and cut lengths varied, causing quality issues.',
+    analysis: 'Why-why: cutting takes long → done by hand with a hacksaw → no cutting machine available on the line.',
+    rootDetail: 'No machine for cutting; manual method gives uneven lengths.', m4: [false, true, true, false],
+    counter: 'Installed a primary copper cutting machine with a length stop.',
+    before: 'Manual cutting with a hacksaw. 50 jobs in 10 hours by 2 operators. Uneven lengths and operator fatigue.',
+    after: 'Machine cutting with a fixed length stop. 50 jobs in 8 hours by 2 operators. Uniform lengths.',
+    benefits: '1) Improved productivity.\n2) Improved quality: uniform cut lengths.\n3) Less operator fatigue.\n4) 50 jobs now done in 8 hours instead of 10.',
+    idea: 'Sanjay Lokhande', implementedBy: 'Deepak More', horizontal: 'yes',
+    wastes: [true, false, true, false, false, false, true, false], pqcdsm: [true, true, true, false, false, true],
+    lines: [{ id: 'L1', type: 'manpower', values: { t: 2, tUnit: 'hr', ops: 2, wage: 800, shift: 12, days: 26, inv: 0 } }]
+  });
+  replaceSheet(k, 'Example loaded (sample values, not a real Kaizen record)');
+};
+
+/* ================= downloads (artifact capability, or a normal browser download) ================= */
+var dlCap = null, dlReady = null;
+if (window.claude && typeof window.claude.use === 'function') dlReady = window.claude.use('downloads').then(function(d){ dlCap = d; return d; }, function(){ return null; });
+function saveFile(name, blob, onSaved){
+  if (dlCap){
+    dlCap.save({ filename: name, data: blob }).then(function(r){ if (r && r.status === 'saved'){ toast('Saved ' + name); if (onSaved) onSaved(); } },
+      function(e){ if (e && e.code === 'declined') return; toast(e && e.code === 'rate_limited' ? 'A save prompt is already open.' : 'Download is not available here.'); });
+    return;
+  }
+  if (window.claude && dlReady && !dlCap){ toast('Download is getting ready. Try again in a moment.'); return; }
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  toast('Downloaded ' + name); if (onSaved) onSaved();
+}
+function copy(text){
+  if (!text){ toast('Nothing to copy yet.'); return; }
+  var fallback = function(){ var a = document.createElement('textarea'); a.value = text; document.body.appendChild(a); a.select(); try { document.execCommand('copy'); toast('Working copied'); } catch(e){ toast('Select the working text and copy it.'); } a.remove(); };
+  try { navigator.clipboard.writeText(text).then(function(){ toast('Working copied'); }, fallback); } catch(e){ fallback(); }
+}
+
+/* ================= suggestions (learns from saved and downloaded Kaizens) ================= */
+var training = lsGet(TRAIN, []) || [];
+var model = SG.train(training);
+function saveTraining(){ lsSet(TRAIN, training); model = SG.train(training); renderLearn(); }
+function kaizenText(k){ k = k || S; return ['theme','problem','analysis','rootDetail','counter','before','after','benefits'].map(function(f){ return k[f] || ''; }).join('\n'); }
+function learnFromThis(){
+  var text = kaizenText(); if (text.replace(/\s/g, '').length < 20) return;
+  var ex = SG.exampleFrom(text, S.lines.map(function(l){ return l.type; }), S.wastes, S.pqcdsm);
+  ex.key = S.id || (S.kaizenNo || '').trim() || ('draft-' + (S.date || ''));
+  training = training.filter(function(t){ return t.key !== ex.key; }); training.push(ex);
+  saveTraining();
+}
+function renderLearn(){
+  var el = $('learnInfo');
+  el.innerHTML = 'Learned from ' + (SG.SEEDS.length + training.length) + ' Kaizens (' + SG.SEEDS.length + ' from your sample sheets + ' + training.length + ' saved in this browser). Each saved Kaizen teaches it.' +
+    ' <button class="linkbtn" type="button" id="btnExportTrain">Export learning</button>' +
+    ' <span class="filebtn"><button class="linkbtn" type="button" tabindex="-1">Import learning</button><input type="file" accept=".json,application/json" id="fileImportTrain" aria-label="Import learning file"></span>';
+  $('btnExportTrain').onclick = function(){
+    if (!training.length){ toast('Nothing learned yet. Save a Kaizen first.'); return; }
+    saveFile('kaizen-learning.json', new Blob([JSON.stringify({ version: 1, examples: training }, null, 1)], { type: 'application/json' }));
+  };
+  $('fileImportTrain').onchange = function(e){
+    var f = e.target.files && e.target.files[0]; if (!f) return;
+    var fr = new FileReader();
+    fr.onload = function(){
+      try {
+        var d = JSON.parse(fr.result), list = (d && (d.examples || d.learning)) || [], keys = {}, added = 0;
+        training.forEach(function(t){ keys[t.key] = 1; });
+        list.forEach(function(x){ if (x && typeof x.text === 'string' && x.labels && !keys[x.key]){ training.push({ key: x.key, text: x.text, labels: x.labels }); keys[x.key] = 1; added++; } });
+        saveTraining(); toast('Imported ' + added + ' Kaizen' + (added === 1 ? '' : 's'));
+      } catch(err){ toast('That file is not a Kaizen learning file.'); }
+    };
+    fr.readAsText(f); e.target.value = '';
+  };
+}
+function confTag(p){ return p >= 0.75 ? '<span class="conf hi">likely</span>' : '<span class="conf md">possible</span>'; }
+var NUM_LABEL = { t: 'time saved', ops: 'operators', wage: 'wage', shift: 'shift', before: 'rejections/month before', after: 'rejections after (assumed, check)', cost: 'loss per rejection', kw: 'kW', inv: 'investment', monthly: 'amount Rs', freq: 'how often' };
+$('btnSuggest').onclick = function(){
+  var out = $('suggestOut'), text = kaizenText();
+  if (text.replace(/\s/g, '').length < 15){ out.innerHTML = '<p class="empty">Write the problem, counter measure or before/after first, then ask for suggestions.</p>'; return; }
+  var s = SG.suggest(model, text), have = {}; S.lines.forEach(function(l){ have[l.type] = 1; });
+  var h = '';
+  if (s.types.length){
+    h += '<div class="sg-list">' + s.types.map(function(t){
+      var pre = SG.prefill(t.type, s.numbers), keys = Object.keys(pre).filter(function(k){ return k !== 'tUnit'; });
+      var filled = keys.length ? 'Will fill: ' + keys.map(function(k){ return NUM_LABEL[k] + ' ' + (k === 'freq' ? (pre[k] === 'once' ? 'one time' : 'every month') : pre[k]) + (k === 't' ? ' ' + (pre.tUnit === 'min' ? 'min' : 'hr') : ''); }).join(', ') : 'No numbers found in the text; you fill them in.';
+      return '<div class="sg"><div><b>' + K.TYPES[t.type].title + '</b>' + confTag(t.p) + '<div class="why">' + (t.why.length ? 'Because it mentions: ' + esc(t.why.join(', ')) + '. ' : '') + esc(filled) + '</div></div>' +
+        '<button class="btn small' + (have[t.type] ? ' ghost' : '') + '" type="button" data-sgadd="' + t.type + '">' + (have[t.type] ? 'Add another' : 'Add this saving') + '</button></div>';
+    }).join('') + '</div>';
+  } else h += '<p class="empty">No saving type stands out. Pick one from the buttons below.</p>';
+  var wN = s.wastes.map(function(w){ return X.WASTES[w.index]; }), pN = s.pqcdsm.map(function(p){ return X.PQCDSM[p.index]; });
+  if (wN.length || pN.length) h += '<div class="sg"><div class="ticks"><b>Ticks</b><div class="why">Waste: ' + (wN.join(', ') || 'none') + '<br>PQCDSM: ' + (pN.join(', ') || 'none') + '</div></div><button class="btn small" type="button" id="sgTicks">Apply these ticks</button></div>';
+  out.innerHTML = h;
+  out.querySelectorAll('[data-sgadd]').forEach(function(b){
+    b.onclick = function(){ sheetView.add(b.dataset.sgadd, SG.prefill(b.dataset.sgadd, s.numbers)); b.textContent = 'Added'; b.disabled = true; toast('Added. Check the numbers it filled in.'); };
+  });
+  var tb = $('sgTicks');
+  if (tb) tb.onclick = function(){
+    s.wastes.forEach(function(w){ S.wastes[w.index] = true; }); s.pqcdsm.forEach(function(p){ S.pqcdsm[p.index] = true; });
+    checks('wastes', X.WASTES, S.wastes); checks('pqcdsm', X.PQCDSM, S.pqcdsm); changed(); tb.textContent = 'Applied'; tb.disabled = true;
+  };
+};
+
+/* ================= start ================= */
+function renderAll(){ bindText(); renderChecks(); ['logo','before','after'].forEach(renderPhoto); $('suggestOut').innerHTML = ''; sheetView.render(); renderStatus(); }
+(function init(){
+  var d = lsGet(DRAFT, null); if (d && typeof d === 'object') S = Object.assign(blank(), d);
+  var br = lsGet(BRAND, null); if (br){ if (!S.company) S.company = br.company; if (!S.photos.logo && br.logo) S.photos.logo = br.logo; }
+  var q = lsGet(QUICK, null); if (q && Array.isArray(q.lines)) Q = q;
+  bindPhotos(); sheetView.buttons(); quickView.buttons();
+  renderAll(); quickView.render(); renderLearn();
+  var h = (location.hash || '').slice(1); show(['sheet','quick','register'].indexOf(h) >= 0 ? h : 'sheet');
+  loadRegister();
+})();
+})();
+</script>
