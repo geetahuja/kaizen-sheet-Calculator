@@ -1,6 +1,6 @@
-// node tests/suggest.test.js — leave-one-out check on the built-in examples + number extraction
+// node suggest.test.js — leave-one-out check on the built-in examples + number extraction
 const assert = require('assert');
-const S = require('../src/kaizen-suggest');
+const S = require('./kaizen-suggest');
 const seeds = S.SEEDS.splice(0); let exact = 0, topRight = 0;
 seeds.forEach((e, i) => {
   const m = S.train(seeds.filter((_, j) => j !== i));

@@ -2,7 +2,7 @@
 
 One app for the whole Kaizen workflow: write up a Kaizen, calculate its savings the same way every time, keep every Kaizen in a register, and download the Kaizen sheet (in the plant's own format) or the whole register as Excel.
 
-It has no dependencies and no server. Open `app/Kaizen-Sheet-Maker.html` in Chrome or Edge, offline included.
+It has no dependencies and no server. Open `Kaizen-Sheet-Maker.html` in Chrome or Edge, offline included.
 
 ## What it does
 
@@ -38,24 +38,23 @@ In detail:
 
 The tests check these formulas against the plant's own sheets: Movable Rack Rs 83,200, Kaizen 03 Rs 1,87,200, PLC payback 3.7 months, and Kaizen 07 as a one-time Rs 10,50,000.
 
-## Folder layout
+## Files
 
 ```
-app/Kaizen-Sheet-Maker.html     the built app, a single file
-src/kaizen-calc.js              saving types, formulas, working text, totals
-src/kaizen-xlsx.js              builds the Kaizen sheet .xlsx and the register .xlsx (own zip writer, no libraries)
-src/kaizen-suggest.js           text classifier: keyword rules + Naive Bayes, number extraction
-src/app.src.html                the app's page; tools/build.py inlines the three modules into it
-tools/build.py                  python3 tools/build.py  →  app/Kaizen-Sheet-Maker.html
-tests/*.test.js                 npm test
-tests/e2e_browser.py            browser walkthrough of all three tabs (needs Playwright)
-examples/                       an Excel sheet produced by the app
+Kaizen-Sheet-Maker.html     the built app, a single file: open it in Chrome or Edge
+kaizen-calc.js              saving types, formulas, working text, totals
+kaizen-xlsx.js              builds the Kaizen sheet .xlsx and the register .xlsx (own zip writer, no libraries)
+kaizen-suggest.js           text classifier: keyword rules + Naive Bayes, number extraction
+app.src.html                the app's page; build.py inlines the three modules into it
+build.py                    python3 build.py  →  Kaizen-Sheet-Maker.html
+*.test.js                   npm test
+e2e_browser.py              browser walkthrough of all three tabs (needs Playwright)
 ```
 
 ## Build and test
 
 ```
-python3 tools/build.py   # rebuild the app after changing anything in src/
+python3 build.py         # rebuild the app after changing kaizen-*.js or app.src.html
 npm test                 # formulas, suggestions, Excel output (Node 18+)
 ```
 
@@ -64,9 +63,9 @@ npm test                 # formulas, suggestions, Excel output (Node 18+)
 All three modules work in the browser (`window.KaizenCalc`, `window.KaizenXlsx`, `window.KaizenSuggest`) and in Node (`require`).
 
 ```js
-const KaizenCalc = require('./src/kaizen-calc');
-const KaizenXlsx = require('./src/kaizen-xlsx');
-const KaizenSuggest = require('./src/kaizen-suggest');
+const KaizenCalc = require('./kaizen-calc');
+const KaizenXlsx = require('./kaizen-xlsx');
+const KaizenSuggest = require('./kaizen-suggest');
 
 // a saving line: store `type` + `values` in the database, recalculate on read
 const line = { type: 'manpower', values: { t: 45, tUnit: 'min', ops: 1, wage: 400, shift: 9, days: 25 } };

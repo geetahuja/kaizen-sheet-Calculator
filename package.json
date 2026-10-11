@@ -2,10 +2,10 @@
   "name": "kaizen-sheet-maker",
   "version": "1.0.0",
   "description": "Kaizen sheet app: savings calculator, text suggestions and Excel output in the plant's Kaizen sheet format. No dependencies.",
-  "main": "src/kaizen-calc.js",
+  "main": "kaizen-calc.js",
   "scripts": {
-    "build": "python3 tools/build.py",
-    "test": "node tests/calc.test.js && node tests/suggest.test.js && node tests/xlsx.test.js"
+    "build": "python3 build.py",
+    "test": "node calc.test.js && node suggest.test.js && node xlsx.test.js"
   },
   "license": "UNLICENSED",
   "private": true

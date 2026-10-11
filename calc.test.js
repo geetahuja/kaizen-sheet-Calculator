@@ -1,6 +1,6 @@
-// node tests/calc.test.js — checks the formulas against the plant's own Kaizen sheets
+// node calc.test.js — checks the formulas against the plant's own Kaizen sheets
 const assert = require('assert');
-const K = require('../src/kaizen-calc');
+const K = require('./kaizen-calc');
 const year = (type, values) => Math.round(K.calcLine({ type, values }).year);
 // Movable Rack: 2 hr × 2 operators, Rs 800 on a 12-hr shift, 26 days → Rs 83,200
 assert.strictEqual(year('manpower', { t: 2, tUnit: 'hr', ops: 2, wage: 800, shift: 12, days: 26 }), 83200);

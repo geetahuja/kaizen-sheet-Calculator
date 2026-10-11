@@ -1,4 +1,4 @@
-tests/out/
+out/
 node_modules/
 *.log
 .DS_Store

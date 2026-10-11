@@ -1,9 +1,9 @@
-# Browser walkthrough of all three tabs (needs: pip install playwright). Run: python3 tests/e2e_browser.py
+# Browser walkthrough of all three tabs (needs: pip install playwright). Run: python3 e2e_browser.py
 import asyncio
 from playwright.async_api import async_playwright
 import pathlib
-ROOT=pathlib.Path(__file__).resolve().parent.parent
-APP=(ROOT/'app'/'Kaizen-Sheet-Maker.html').as_uri()
+ROOT=pathlib.Path(__file__).resolve().parent
+APP=(ROOT/'Kaizen-Sheet-Maker.html').as_uri()
 async def main():
     async with async_playwright() as p:
         b=await p.chromium.launch(); ctx=await b.new_context(viewport={'width':1280,'height':900}, accept_downloads=True); pg=await ctx.new_page()
@@ -21,7 +21,7 @@ async def main():
             await pg.fill(f'#quickLines [data-f="{f}"]', v)
         await pg.wait_for_timeout(200)
         print('4 quick bar:', await pg.inner_text('#barTotal'))
-        await pg.screenshot(path=str(ROOT/'tests'/'out')+'/quick.png')
+        await pg.screenshot(path=str(ROOT/'out')+'/quick.png')
         await pg.click('#btnQToSheet'); await pg.wait_for_timeout(1500)
         print('5 sheet lines:', len(await pg.query_selector_all('#sheetLines .line')), '| bar', await pg.inner_text('#barTotal'))
         # new kaizen, type, then try opening the saved one -> confirm
@@ -35,11 +35,11 @@ async def main():
         await pg.click('#regConfirm button:has-text("Save it")'); await pg.wait_for_timeout(800)
         print('9 opened:', await pg.input_value('#kaizenNo'), '| count', await pg.inner_text('#regCount'))
         await pg.click('#tab-register'); await pg.wait_for_timeout(300)
-        await pg.screenshot(path=str(ROOT/'tests'/'out')+'/register.png', full_page=True)
+        await pg.screenshot(path=str(ROOT/'out')+'/register.png', full_page=True)
         async with pg.expect_download() as dl: await pg.click('#btnRegXlsx')
-        await (await dl.value).save_as(str(ROOT/'tests'/'out')+'/register-ui.xlsx')
+        await (await dl.value).save_as(str(ROOT/'out')+'/register-ui.xlsx')
         async with pg.expect_download() as dl2: await pg.click('[data-xl]')
-        await (await dl2.value).save_as(str(ROOT/'tests'/'out')+'/row-ui.xlsx')
+        await (await dl2.value).save_as(str(ROOT/'out')+'/row-ui.xlsx')
         # delete with confirm
         n0=len(await pg.query_selector_all('[data-del]'))
         await pg.click('tr:not(.current) [data-del]'); await pg.wait_for_timeout(200)
@@ -48,6 +48,6 @@ async def main():
         await pg.reload(); await pg.wait_for_timeout(800)
         print('11 after reload: count', await pg.inner_text('#regCount'), '| sheet', await pg.input_value('#kaizenNo'), '| tab', await pg.get_attribute('#tab-register','aria-selected'))
         m=await ctx.new_page(); await m.set_viewport_size({'width':390,'height':800}); await m.goto(APP+'#register'); await m.wait_for_timeout(800)
-        await m.screenshot(path=str(ROOT/'tests'/'out')+'/mobile-register.png'); print('12 mobile width', await m.evaluate('document.documentElement.scrollWidth'))
+        await m.screenshot(path=str(ROOT/'out')+'/mobile-register.png'); print('12 mobile width', await m.evaluate('document.documentElement.scrollWidth'))
         print('errors', errs); await b.close()
 asyncio.run(main())
